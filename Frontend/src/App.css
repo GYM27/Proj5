@@ -1,0 +1,131 @@
+/* 1. VARIÁVEIS GLOBAIS */
+:root {
+  --sidebar-width-open: 150px;
+  --sidebar-width-closed: 0px; /* Aumentado ligeiramente para os ícones respirarem */
+  --header-height: 56px;
+  --transition-speed: 0.3s;
+
+  /* Cores do Tema */
+  --accent: #0d6efd;
+  --accent-bg: rgba(13, 110, 253, 0.1);
+  --border: #dee2e6;
+  --text-h: #212529;
+  --bridge-blue: #1e2a78;
+}
+
+/* 2. LAYOUT PRINCIPAL */
+.navbar.fixed-top {
+  z-index: 1050;
+  height: var(--header-height);
+  background-color: var(--bridge-blue) !important;
+}
+
+/* 3. SIDEBAR (LOGICA DE TRANSIÇÃO) */
+.sidebar-nav {
+  height: calc(100vh - var(--header-height));
+  position: sticky;
+  top: var(--header-height);
+  background-color: #ffffff;
+  z-index: 1020;
+  border-right: 1px solid var(--border);
+  overflow-x: hidden;
+  transition: width var(--transition-speed) ease;
+}
+
+/* Estados de largura controlados pelas classes is-open/is-closed */
+.sidebar-nav.is-open {
+  width: var(--sidebar-width-open);
+  min-width: var(--sidebar-width-open) ;
+  max-width: var(--sidebar-width-open) ;
+}
+
+.sidebar-nav.is-closed {
+  width: var(--sidebar-width-closed);
+  min-width: var(--sidebar-width-closed);
+  max-width: var(--sidebar-width-closed);
+}
+
+/* 4. ELEMENTOS INTERNOS DA SIDEBAR */
+.nav-icon-wrapper {
+  min-width: var(--sidebar-width-closed); /* Garante centralização perfeita quando fechado */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.nav-label {
+  white-space: nowrap;
+  transition: opacity 0.2s ease, visibility 0.2s;
+  margin-left: 5px;
+}
+
+/* Esconder texto quando a sidebar está fechada */
+.sidebar-nav.is-closed .nav-label {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Link Ativo */
+.active-link {
+  color: var(--accent) !important;
+  font-weight: bold;
+  background-color: #f8f9fa; /* Um cinza muito leve para destacar */
+  border-right: 3px solid var(--accent); /* Dá um toque profissional */
+}
+
+/* 5. COMPORTAMENTO MOBILE */
+@media (max-width: 767px) {
+  .sidebar-nav {
+    position: fixed;
+    left: 0;
+    z-index: 1040;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  }
+  .sidebar-nav.is-closed {
+    width: 0px !important; /* Esconde totalmente no mobile se fechado */
+  }
+}
+
+/* 6. COMPONENTES (CARDS & UTILS) */
+.kanban-card, .clientes-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.kanban-card:hover, .clientes-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+.user-dropdown-custom .dropdown-toggle::after {
+  display: none !important;
+}
+
+.very-small {
+  font-size: 0.75rem;
+}
+
+.sidebar-nav.is-open {
+  width: var(--sidebar-width-open) !important;
+  min-width: var(--sidebar-width-open) !important;
+  max-width: var(--sidebar-width-open) !important;
+}
+
+.sidebar-nav.is-closed {
+  width: var(--sidebar-width-closed) !important;
+  min-width: var(--sidebar-width-closed) !important;
+  max-width: var(--sidebar-width-closed) !important;
+}
+
+.nav-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  width: 100%;
+}
