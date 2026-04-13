@@ -10,7 +10,9 @@ public class UserBaseDTO {
 
     // Campos do admin
     private Long id;
-    //public String username;
+    @NotBlank(message = "O username não pode estar vazio")
+    public String username;
+
     private String role;
     private boolean softDelete;
 
@@ -39,14 +41,13 @@ public class UserBaseDTO {
     public void setId(Long id) {
         this.id = id;
     }
-/*
     public String getUsername() {
         return username;
     }
 
     public void setUsername(String username) {
         this.username = username;
-    }*/
+    }
 
     public String getRole() {
         return role;

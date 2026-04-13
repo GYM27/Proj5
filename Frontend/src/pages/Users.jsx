@@ -1,18 +1,25 @@
-import React, {useEffect, useState, useCallback} from "react";
-import {Container, Spinner, Alert} from "react-bootstrap";
-import {useNavigate} from "react-router-dom";
-import {useUserStore} from "../stores/UserStore";
-import {userService} from "../services/userService";
+import React, { useEffect, useState, useCallback } from "react";
+import { Container, Spinner, Alert } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
+import { useUserStore } from "../stores/UserStore";
+import { userService } from "../services/userService";
 
 // Componentes extraídos
 import UserGrid from "../components/Users/UserGrid";
-import {useModalManager} from "../Modal/useModalManager.jsx";
+import { useModalManager } from "../Modal/useModalManager.jsx";
 import DynamicModal from "../Modal/DynamicModal.jsx";
 import ConfirmActionContent from "../Modal/ConfirmActionContent.jsx";
-import {useUserActions} from "../components/Users/useUserActions.jsx";
+import { useUserActions } from "../components/Users/useUserActions.jsx";
 
+/**
+ * Componente responsável pela listagem e gestão de utilizadores.
+ * Página de acesso restrito a Administradores.
+ * Permite visualizar os perfis através de URLs únicos, alterar o estado (Ativar/Desativar)
+ * e eliminar permanentemente contas de utilizadores.
+ * * @returns {JSX.Element} A interface de listagem e gestão de utilizadores.
+ */
 const Users = () => {
-    const {userRole} = useUserStore();
+    const { userRole } = useUserStore();
     const isAdmin = userRole === "ADMIN";
     const navigate = useNavigate();
 
@@ -20,8 +27,12 @@ const Users = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const {modalConfig, openModal, closeModal} = useModalManager();
+    const { modalConfig, openModal, closeModal } = useModalManager();
 
+    /**
+     * Carrega a lista completa de utilizadores a partir da API.
+     * Ordena a lista colocando os utilizadores ativos primeiro e os desativados (softDelete) no fim.
+     */
     const loadUsers = useCallback(async () => {
         try {
             setLoading(true);
@@ -35,6 +46,10 @@ const Users = () => {
         }
     }, []);
 
+    /**
+     * Efeito que verifica o nível de acesso do utilizador atual.
+     * Se não for administrador, redireciona para o dashboard. Caso contrário, carrega a lista.
+     */
     useEffect(() => {
         if (!isAdmin) {
             navigate("/dashboard");
@@ -45,9 +60,12 @@ const Users = () => {
 
     // INJEÇÃO DA LÓGICA DE NEGÓCIO:
     // Passamos o loadUsers e o closeModal para o hook saber o que fazer após a API responder.
-    const {executeUserAction} = useUserActions(loadUsers, closeModal);
+    const { executeUserAction } = useUserActions(loadUsers, closeModal);
 
-    // O HANDLE FICA REDUZIDO A UM DELEGADOR:
+    /**
+     * Delega a ação confirmada no modal para o hook de ações de utilizador.
+     * * @param {Object} data - Os dados do utilizador sobre o qual a ação será executada.
+     */
     const handleConfirmAction = async (data) => {
         await executeUserAction(modalConfig.type, data);
     };
@@ -55,7 +73,7 @@ const Users = () => {
     if (loading && users.length === 0) {
         return (
             <Container className="mt-5 text-center">
-                <Spinner animation="border" variant="primary"/>
+                <Spinner animation="border" variant="primary" />
                 <p className="mt-3 text-muted">A carregar equipa...</p>
             </Container>
         );
@@ -72,7 +90,8 @@ const Users = () => {
 
             <UserGrid
                 users={users}
-                onViewProfile={(u) => navigate(`/profile?userId=${u.id}`)}
+                /* CORREÇÃO: Utilizar a variável correta "u" definida no parâmetro do callback */
+                onViewProfile={(u) => navigate(`/users/${u.username}`)}
                 onToggleStatus={(u) => openModal("USER_TOGGLE_STATUS", u.softDelete ? "Reativar" : "Desativar", u)}
                 onHardDelete={(u) => openModal("USER_HARD_DELETE", "Ação Irreversível", u)}
             />

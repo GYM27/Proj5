@@ -33,6 +33,7 @@ function App() {
           <Route path="/leads/:id" element={<LeadDetails />} />
           <Route path="/users" element={<Users />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/users/:username" element={<Profile />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/clients/new" element={<NewClient />} />
         </Route>

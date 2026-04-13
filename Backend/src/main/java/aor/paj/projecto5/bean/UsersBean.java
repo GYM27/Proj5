@@ -14,19 +14,36 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Enterprise JavaBean (EJB) Stateless responsável pela lógica de negócio
+ * e gestão de Utilizadores (Users).
+ * Contém métodos para registo, edição, autenticação e listagem de utilizadores.
+ */
 @Stateless
 public class UsersBean implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Data Access Object (DAO) para operações na base de dados relacionadas com a entidade UserEntity.
+     */
     @Inject
     UserDao userDao;
+
+    /**
+     * Bean responsável pela criação, validação e gestão de tokens de autenticação.
+     */
     @Inject
     TokenBean tokenBean;
 
     /**
-     * Helper: Mapeia dados do DTO para a Entidade (Campos Comuns).
+     * Método auxiliar para mapear dados de um Data Transfer Object (DTO) para uma Entidade.
+     * Atualiza apenas os campos gerais de perfil (nome, email, contacto, foto).
+     * O username nunca é alterado por este método; o Role e SoftDelete são tratados separadamente.
+     *
+     * @param dto O DTO contendo os novos dados do utilizador.
+     * @param entity A entidade a ser atualizada.
      */
     private void mapDtoToEntity(UserBaseDTO dto, UserEntity entity) {
         entity.setFirstName(dto.getFirstName());
@@ -34,11 +51,15 @@ public class UsersBean implements Serializable {
         entity.setEmail(dto.getEmail());
         entity.setContact(dto.getCellphone());
         entity.setPhoto(dto.getPhotoUrl());
-        // Username nunca é alterado; Role e SoftDelete são tratados em métodos específicos
+
     }
 
     /**
-     * Converte Entidade para UserBaseDTO (Seguro para Listagens).
+     * Converte uma entidade UserEntity para o seu formato UserBaseDTO.
+     * Este DTO é seguro para listagens e perfis públicos, pois omite dados sensíveis como a password.
+     *
+     * @param entity A entidade {@link UserEntity} a converter.
+     * @return O {@link UserBaseDTO} correspondente, ou null se a entidade for null.
      */
     public UserBaseDTO convertToUserBaseDTO(UserEntity entity) {
         if (entity == null) return null;
@@ -46,6 +67,7 @@ public class UsersBean implements Serializable {
         dto.setId(entity.getId());
         dto.setFirstName(entity.getFirstName());
         dto.setLastName(entity.getLastName());
+        dto.setUsername(entity.getUsername());
         dto.setEmail(entity.getEmail());
         dto.setCellphone(entity.getContact());
         dto.setPhotoUrl(entity.getPhoto());
@@ -57,7 +79,12 @@ public class UsersBean implements Serializable {
     }
 
     /**
-     * Converte Entidade para UserDTO (Completo para o Perfil "Me").
+     * Converte uma entidade UserEntity para o seu formato completo UserDTO.
+     * Este DTO inclui campos privados (username e password), sendo adequado para
+     * operações no próprio perfil ou fluxos internos de autenticação.
+     *
+     * @param entity A entidade {@link UserEntity} a converter.
+     * @return O {@link UserDTO} correspondente, ou null se a entidade for null.
      */
     public UserDTO convertToUserDTO(UserEntity entity) {
         if (entity == null) return null;
@@ -79,17 +106,52 @@ public class UsersBean implements Serializable {
 
     // --- MÉTODOS DE CONSULTA ---
 
+    /**
+     * Obtém os dados completos (UserDTO) do utilizador atualmente autenticado através do seu token.
+     *
+     * @param token O token de autenticação fornecido no cabeçalho da requisição.
+     * @return O {@link UserDTO} correspondente ao utilizador autenticado.
+     */
     public UserDTO getUserDTOByToken(String token) {
         UserEntity user = tokenBean.getUserEntityByToken(token);
         return convertToUserDTO(user);
     }
 
+    /**
+     * Obtém os dados básicos (UserBaseDTO) de um utilizador através do seu ID.
+     *
+     * @param id O identificador único do utilizador.
+     * @return O {@link UserBaseDTO} correspondente.
+     */
     public UserBaseDTO getUserBaseDTOById(Long id) {
         return convertToUserBaseDTO(userDao.find(id));
     }
 
+    /**
+     * Procura um utilizador pelo seu username.
+     * Necessário para carregar a página de perfil quando o utilizador acede através do URL partilhável.
+     *
+     * @param username O nome de utilizador a pesquisar.
+     * @return O DTO do utilizador encontrado.
+     * @throws WebApplicationException Se o utilizador não existir (Erro 404).
+     */
+    public UserBaseDTO getUserBaseDTOByUsername(String username) {
+        UserEntity entity = userDao.findUserByUsername(username);
+        if (entity == null) {
+            throw new WebApplicationException("Utilizador não encontrado", 404);
+        }
+        return convertToUserBaseDTO(entity);
+    }
+
     // --- GESTÃO DE UTILIZADORES ---
 
+    /**
+     * Regista um novo utilizador no sistema.
+     * Valida a unicidade do username e do email antes de persistir a entidade.
+     *
+     * @param userDTO O DTO contendo os dados do novo utilizador.
+     * @throws WebApplicationException Se o username ou email já estiverem em uso (HTTP 409).
+     */
     public void registerUser(UserDTO userDTO) {
         if (userDao.findUserByUsername(userDTO.getUsername()) != null)
             throw new WebApplicationException("Username já existe.", 409);
@@ -105,7 +167,12 @@ public class UsersBean implements Serializable {
     }
 
     /**
-     * Edição pelo próprio utilizador.
+     * Permite que um utilizador autenticado edite o seu próprio perfil.
+     * Valida se o novo email inserido não pertence já a outra conta existente.
+     *
+     * @param token O token do utilizador que faz o pedido.
+     * @param userDTO Os novos dados a aplicar ao perfil.
+     * @throws WebApplicationException Se o utilizador não for encontrado (404) ou o email já estiver em uso por outro (409).
      */
     public void putEditOwnUser(String token, UserDTO userDTO) {
         UserEntity user = tokenBean.getUserEntityByToken(token);
@@ -121,7 +188,12 @@ public class UsersBean implements Serializable {
     }
 
     /**
-     * Edição feita pelo ADMIN sobre qualquer utilizador.
+     * Permite que um Administrador edite o perfil de qualquer utilizador no sistema.
+     * Permite a alteração do nível de acesso (Role) do utilizador.
+     *
+     * @param id O identificador do utilizador a editar.
+     * @param dto Os novos dados do utilizador (incluindo potencialmente um novo role).
+     * @throws WebApplicationException Se o utilizador não for encontrado (404) ou o email já estiver em uso (409).
      */
     public void putEditUser(Long id, UserBaseDTO dto) {
         UserEntity user = userDao.find(id);
@@ -139,18 +211,38 @@ public class UsersBean implements Serializable {
         }
     }
 
+    /**
+     * Desativa um utilizador (Soft Delete), impedindo o seu login sem remover o seu histórico de dados.
+     *
+     * @param id O ID do utilizador a desativar.
+     * @throws WebApplicationException Se o utilizador não for encontrado (HTTP 404).
+     */
     public void softDeleteUser(Long id) {
         UserEntity user = userDao.find(id);
         if (user == null) throw new WebApplicationException("Não encontrado", 404);
         user.setSoftDelete(true);
     }
 
+    /**
+     * Reativa um utilizador previamente desativado (Remove o Soft Delete).
+     *
+     * @param id O ID do utilizador a reativar.
+     * @throws WebApplicationException Se o utilizador não for encontrado (HTTP 404).
+     */
     public void softUnDeleteUser(Long id) {
         UserEntity user = userDao.find(id);
         if (user == null) throw new WebApplicationException("Não encontrado", 404);
         user.setSoftDelete(false);
     }
 
+    /**
+     * Remove permanentemente um utilizador do sistema (Hard Delete).
+     * Para manter a integridade referencial, todos os registos associados a este utilizador
+     * são transferidos para um utilizador de sistema estático denominado "deleted_user".
+     *
+     * @param id O ID do utilizador a ser removido fisicamente.
+     * @throws WebApplicationException Se o utilizador alvo não for encontrado ou se o utilizador de sistema falhar.
+     */
     public void deleteUser(Long id) {
         UserEntity userToDelete = userDao.find(id);
         if (userToDelete == null) throw new WebApplicationException("Não encontrado", 404);
@@ -163,7 +255,10 @@ public class UsersBean implements Serializable {
     }
 
     /**
-     * Lista para o Admin (filtra o deleted_user e protege o próprio Admin).
+     * Obtém uma lista de todos os utilizadores registados no sistema.
+     * Oculta o utilizador técnico "deleted_user" para não aparecer em listagens e dashboards.
+     *
+     * @return Uma lista de objetos {@link UserBaseDTO} correspondentes aos utilizadores.
      */
     public List<UserBaseDTO> getAllUsers() {
         List<UserEntity> entities = userDao.findAll();
@@ -179,9 +274,13 @@ public class UsersBean implements Serializable {
     }
 
     /**
-     * Autentica um utilizador verificando username, password e estado da conta.
-     * @param loginDTO Dados vindos do formulário de login.
-     * @return LoginResponseDTO se bem-sucedido, null se as credenciais falharem ou conta inativa.
+     * Autentica um utilizador verificando as credenciais e o estado da conta.
+     * Garante que o utilizador existe, a password coincide e que a conta não se encontra desativada.
+     * Se a autenticação tiver sucesso, gera e devolve um novo token.
+     *
+     * @param loginDTO Dados vindos do formulário de login (username e password).
+     * @return Um {@link LoginResponseDTO} contendo os dados base do utilizador e o token gerado,
+     * ou null caso as credenciais sejam inválidas ou a conta inativa.
      */
     public LoginResponseDTO authenticateUser(LoginDTO loginDTO) {
         if (loginDTO == null || loginDTO.getUsername() == null) {

@@ -1,65 +1,74 @@
 import api from './api';
 
 /**
- * SERVIÇO: userService
- * --------------------
- * DESCRIÇÃO: Gere a comunicação com os endpoints JAX-RS para a entidade User.
- * FUNCIONALIDADE: Suporta a consulta de perfil próprio, gestão de staff por Admin
- * e operações de manutenção de conta (Ativar/Desativar/Eliminar).
+ * Serviço responsável por gerir todas as chamadas à API relacionadas com utilizadores.
+ * Agrupa os métodos de consulta, edição e administração de contas.
  */
 export const userService = {
+
     /**
-     * CONSULTA DE PERFIL PRÓPRIO (AUTOCONSULTA):
-     * Utilizado no 'Profile.jsx' quando o utilizador quer ver ou editar os seus dados.
-     * O Backend identifica o utilizador através do Token JWT enviado no Header.
+     * Obtém os dados do perfil do utilizador atualmente autenticado.
+     * * @returns {Promise<Object>} Uma promessa que resolve com os dados do utilizador ativo (UserDTO).
      */
     getMe: async () => {
         return await api("/users/me", "GET");
     },
 
     /**
-     * LISTAGEM GLOBAL (EXCLUSIVO ADMIN - 2%):
-     * Mapeia para @GET /users no Java.
-     * Retorna a lista de todos os colaboradores para a página 'Users.jsx'.
+     * Obtém a lista de todos os utilizadores registados no sistema.
+     * Garante que o retorno é sempre um array, mesmo que a API falhe ou devolva um formato inesperado.
+     * * @returns {Promise<Array>} Uma promessa que resolve com um array de utilizadores (UserBaseDTO).
      */
     getAllUsers: async () => {
         const response = await api("/users", "GET");
-        // Garantia de robustez: assegura que o componente recebe sempre um array,
-        // mesmo que a API devolva um erro ou uma resposta vazia.
         return Array.isArray(response) ? response : [];
     },
 
     /**
-     * EDITA O PRÓPRIO PERFIL:
-     * Envia as alterações do utilizador para a base de dados.
+     * Atualiza os dados do perfil do utilizador atualmente autenticado.
+     * * @param {Object} userData - Objeto contendo os novos dados do perfil a serem atualizados.
+     * @returns {Promise<Object>} Uma promessa que resolve com a resposta da API à atualização.
      */
     updateMyProfile: async (userData) => {
         return await api("/users/me", "PUT", userData);
     },
 
     /**
-     * CONSULTA POR ID (ADMIN VIEW):
-     * Permite que o Admin carregue os detalhes de um colaborador específico
-     * ao clicar num UserCard ou ao navegar para /profile?userId=X.
+     * Obtém os dados básicos de um utilizador específico através do seu ID.
+     * * @param {number|string} id - O identificador único do utilizador a consultar.
+     * @returns {Promise<Object>} Uma promessa que resolve com os dados do utilizador (UserBaseDTO).
      */
     getUserById: async (id) => {
         return await api(`/users/${id}`, "GET");
     },
 
     /**
-     * GESTÃO DE ESTADO (REGRA A9 - SOFT DELETE):
-     * Utiliza o verbo PATCH para uma alteração parcial de estado.
-     * @param {string} id - ID do utilizador alvo.
-     * @param {string} action - "deactivate" (Desativar) ou "activate" (Reativar).
+     * Obtém os dados de um utilizador específico através do seu username.
+     * Ideal para visualização de perfis partilháveis através de rotas dinâmicas (/users/:username).
+     * * @param {string} username - O nome de utilizador (username) exato a consultar.
+     * @returns {Promise<Object>} Uma promessa que resolve com os dados do utilizador (UserBaseDTO).
+     */
+    getUserByUsername: async (username) => {
+        return await api(`/users/username/${username}`, "GET");
+    },
+
+    /**
+     * Altera o estado de um utilizador (Ativar ou Desativar / Soft Delete).
+     * Ação restrita a Administradores.
+     * * @param {number|string} id - O ID do utilizador alvo.
+     * @param {string} action - A ação a executar ("activate" ou "deactivate").
+     * @returns {Promise<Object>} Uma promessa que resolve com a confirmação da alteração de estado.
      */
     toggleUserStatus: async (id, action) => {
         return await api(`/users/${id}/${action}`, "PATCH");
     },
 
     /**
-     * ELIMINAÇÃO FÍSICA (REGRA A14 - HARD DELETE):
-     * Remove permanentemente o registo do utilizador da base de dados PostgreSQL.
-     * Mapeia para @DELETE /users/{id} no Java.
+     * Remove permanentemente um utilizador do sistema (Hard Delete).
+     * Os registos associados (ex: clientes, leads) serão transferidos para um utilizador de sistema.
+     * Ação restrita a Administradores.
+     * * @param {number|string} id - O ID do utilizador a eliminar fisicamente.
+     * @returns {Promise<Object>} Uma promessa que resolve com a confirmação da eliminação.
      */
     deleteUserPermanent: async (id) => {
         return await api(`/users/${id}`, "DELETE");

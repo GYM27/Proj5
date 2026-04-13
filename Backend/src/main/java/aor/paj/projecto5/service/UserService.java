@@ -158,4 +158,12 @@ public class UserService {
         usersBean.deleteUser(id);
         return Response.ok("{\"message\":\"Utilizador removido permanentemente.\"}").build();
     }
+
+    @GET
+    @Path("/username/{username}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getUserByUsername(@PathParam("username") String username) {
+        UserBaseDTO user = usersBean.getUserBaseDTOByUsername(username);
+        return Response.ok(user).build();
+    }
 }
