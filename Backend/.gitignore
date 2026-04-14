@@ -1,0 +1,10 @@
+# Maven - IMPORTANTE
+target/
+
+# IDEs
+.idea/
+*.iml
+
+# Ficheiros temporários e logs
+*.log
+.DS_Store
