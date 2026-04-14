@@ -1,5 +1,6 @@
 package aor.paj.projecto5.bean;
 
+import aor.paj.projecto5.utils.UserState;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
 import aor.paj.projecto5.dao.TokenDao;
@@ -10,6 +11,7 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import static aor.paj.projecto5.utils.UserState.DISABLED;
 
 @Stateless
 public class TokenBean implements Serializable {
@@ -66,8 +68,9 @@ public class TokenBean implements Serializable {
 
     public boolean getUserSoftDelete(String token) {
         UserEntity user = getUserEntityByToken(token);
+
         // Se não encontrar user ou o token for inválido, retornamos true (bloqueado)
-        return (user == null) || user.isSoftDelete();
+        return (user == null) || (user.getState() == UserState.DISABLED);
     }
 
     public boolean invalidateToken(String tokenValue) {

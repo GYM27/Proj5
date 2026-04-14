@@ -3,6 +3,7 @@ package aor.paj.projecto5.service;
 import java.util.List;
 
 import aor.paj.projecto5.bean.ClientsBean;
+import aor.paj.projecto5.bean.UserVerificationBean;
 import aor.paj.projecto5.dto.ClientsDTO;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;

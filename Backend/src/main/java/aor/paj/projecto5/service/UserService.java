@@ -1,5 +1,8 @@
 package aor.paj.projecto5.service;
 
+import aor.paj.projecto5.bean.UserVerificationBean;
+import aor.paj.projecto5.dto.EmailDTO;
+import aor.paj.projecto5.dto.LoginDTO;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
@@ -27,16 +30,47 @@ public class UserService {
     // =========================================================================
 
     /**
-     * Regista um novo utilizador no sistema.
-     * URL: POST /users/register
+     * PASSO 1 (ADMIN): Envia um convite de registo para um novo email.
+     * Apenas Administradores podem aceder a este endpoint.
+     * URL: POST /users/invite
+     */
+    @POST
+    @Path("/invite")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response inviteUser(@Valid EmailDTO emailDTO, @HeaderParam("token") String adminToken) {
+
+        // 1. Garante que quem está a tentar enviar o convite é um Administrador
+        verifier.verifyAdmin(adminToken);
+
+        // 2. Chama o Passo 1 do nosso Bean (que vai validar se já existe e gerar o Token)
+        usersBean.requestRegistration(emailDTO.getEmail());
+
+        return Response.ok("{\"message\":\"Convite enviado com sucesso para " + emailDTO.getEmail() + "\"}").build();
+    }
+
+    /**
+     * Conclui o registo usando o token recebido por email.
+     * Endpoint público (não exige verifier).
+     * URL: POST /users/register?token=123-abc-456
      */
     @POST
     @Path("/register")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response registerUser(@Valid UserDTO user) {
-        usersBean.registerUser(user);
-        return Response.status(Response.Status.CREATED).entity(user).build();
+    public Response completeRegistration(@QueryParam("token") String token, @Valid UserDTO userDTO) {
+
+        // 1. Valida se o token foi enviado no link
+        if (token == null || token.isEmpty()) {
+            return Response.status(400).entity("{\"error\":\"Token de convite em falta.\"}").build();
+        }
+
+        // 2. Chama o Passo 2 do nosso Bean (valida token, valida email, cria utilizador ACTIVE)
+        usersBean.completeRegistration(token, userDTO);
+
+        return Response.status(Response.Status.CREATED)
+                .entity("{\"message\":\"Conta criada com sucesso! Já pode fazer login.\"}")
+                .build();
     }
 
     /**
@@ -166,4 +200,36 @@ public class UserService {
         UserBaseDTO user = usersBean.getUserBaseDTOByUsername(username);
         return Response.ok(user).build();
     }
+
+
+    /**
+     * Endpoint para solicitar a recuperação de password.
+     * URL: POST /users/forgot-password
+     */
+    @POST
+    @Path("/forgot-password")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response forgotPassword(@Valid EmailDTO emailDTO) {
+        usersBean.requestPasswordReset(emailDTO.getEmail());
+        // Retornamos sempre sucesso por segurança (Privacy)
+        return Response.ok("{\"message\":\"Se o email existir, receberá um link de recuperação.\"}").build();
+    }
+
+    /**
+     * Endpoint para definir a nova password.
+     * URL: POST /users/reset-password?token=...
+     */
+    @POST
+    @Path("/reset-password")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response resetPassword(@QueryParam("token") String token, LoginDTO loginDTO) {
+        // Usamos o LoginDTO porque já tem o campo password, ou podes criar um NewPasswordDTO
+        if (token == null || loginDTO.getPassword() == null) {
+            throw new WebApplicationException("Token ou Password em falta.", 400);
+        }
+
+        usersBean.resetPassword(token, loginDTO.getPassword());
+        return Response.ok("{\"message\":\"Password atualizada com sucesso.\"}").build();
+    }
+
 }

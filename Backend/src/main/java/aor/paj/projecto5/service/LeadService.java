@@ -4,6 +4,7 @@ import java.util.List;
 
 import aor.paj.projecto5.bean.LeadsBean;
 import aor.paj.projecto5.bean.LoginBean;
+import aor.paj.projecto5.bean.UserVerificationBean;
 import aor.paj.projecto5.dto.LeadDTO;
 import aor.paj.projecto5.exception.ErrorResponse;
 import jakarta.inject.Inject;
