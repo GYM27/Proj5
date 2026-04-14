@@ -52,9 +52,10 @@ const Sidebar = ({ isOpen }) => {
                   <OverlayTrigger
                       placement="right"
                       disabled={isOpen}
+                      container={() => document.body}
                       overlay={<Tooltip id={`t-${item.to}`}>{item.label}</Tooltip>}
                   >
-                    {/* NAVEGAÇÃO REATIVA (6%):
+                    {/* NAVEGAÇÃO REATIVA :
                         'NavLink' do react-router-dom gere automaticamente a classe 'active-link'
                         quando o URL coincide com o destino, dando feedback visual de onde o utilizador está.
                     */}

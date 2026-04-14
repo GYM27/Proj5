@@ -1,5 +1,6 @@
 package aor.paj.projecto5.entity;
 
+import aor.paj.projecto5.utils.UserState;
 import jakarta.persistence.*;
 import aor.paj.projecto5.utils.UserRoles;
 
@@ -49,8 +50,11 @@ public class UserEntity implements Serializable {
     @Column(name="role", nullable = false)
     private UserRoles userRole= UserRoles.NORMAL;
 
-    @Column(name = "softDelete", nullable = false)
-    private boolean softDelete = false;
+    @Enumerated(EnumType.STRING) // Guarda o nome do estado (ex: "PENDING") na BD em vez de um número
+    @Column(name = "state", nullable = false)
+    private UserState state = UserState.PENDING;
+
+    @Column()
 
 
     @OneToMany(mappedBy = "owner", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
@@ -163,14 +167,6 @@ public class UserEntity implements Serializable {
 
     public void setLeads(List<LeadEntity> leads) {
         this.leads = leads;
-    }
-
-    public boolean isSoftDelete() {
-        return softDelete;
-    }
-
-    public void setSoftDelete(boolean softDelete) {
-        this.softDelete = softDelete;
     }
 
     public Long getId() {

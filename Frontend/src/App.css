@@ -129,3 +129,74 @@
   display: block;
   width: 100%;
 }
+
+/**
+ * REGRAS DE ESTABILIDADE PARA TOOLTIPS E SIDEBAR
+ */
+
+/* Força a ausência de scroll horizontal em toda a aplicação */
+html, body {
+  overflow-x: hidden !important;
+  /* Previne que o aparecimento/desaparecimento de tooltips mude a largura */
+  width: 100vw;
+}
+
+/* Garante que a sidebar nunca mude de largura exceto na transição */
+.sidebar-nav {
+  /* ... tuas regras anteriores ... */
+  overflow: hidden !important;
+  /* Impede que o browser tente fazer scroll quando o tooltip aparece perto da borda */
+  contain: paint;
+}
+
+/* CORREÇÃO DOS LINKS: Removemos paddings que mudam ou margens negativas */
+.sidebar-nav .nav-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 12px 10px;
+  box-sizing: border-box; /* Crucial para o padding não somar à largura */
+  border-right: 3px solid transparent;
+  text-decoration: none;
+  /* Impede que o conteúdo interno (icon+label) "empurre" o container */
+  flex-wrap: nowrap;
+}
+
+/* CORREÇÃO DA LABEL: Onde o clique e o tremor costumam persistir */
+.nav-label {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Calculamos a largura máxima exata para nunca bater na borda */
+  max-width: calc(var(--sidebar-width-open) - 60px);
+  margin-left: 10px;
+  /* Evita seleção visual que causa jitter no clique */
+  user-select: none;
+}
+
+/* Estilo do Tooltip (Global) */
+.tooltip {
+  /* Garante que o tooltip não herda propriedades de transição da sidebar */
+  transition: opacity 0.15s linear !important;
+  /* Evita que o tooltip dispare eventos de rato que "confundem" a sidebar */
+  pointer-events: none;
+}
+
+/* Impede que o Tooltip interaja com o rato e cause loops de hover */
+.tooltip {
+  pointer-events: none !important;
+  /* Garante que o Tooltip não force barras de scroll no body */
+  position: fixed !important;
+}
+
+/* Suaviza ou remove a animação de fade se ela estiver a causar o tremor visual */
+.tooltip.fade {
+  transition: opacity 0.1s linear !important;
+}
+
+/* Garante que o body não ganhe scroll horizontal quando o tooltip nasce na borda */
+body {
+  overflow-x: hidden !important;
+  width: 100vw;
+}

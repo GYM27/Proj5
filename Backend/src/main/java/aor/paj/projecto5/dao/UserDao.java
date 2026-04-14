@@ -1,5 +1,6 @@
 package aor.paj.projecto5.dao;
 
+import aor.paj.projecto5.utils.UserState;
 import jakarta.ejb.Stateless;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.criteria.*;
@@ -7,6 +8,8 @@ import aor.paj.projecto5.entity.TokenEntity;
 import aor.paj.projecto5.entity.UserEntity;
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 @Stateless
 public class UserDao extends AbstractDao<UserEntity> implements Serializable {
@@ -89,6 +92,22 @@ public class UserDao extends AbstractDao<UserEntity> implements Serializable {
                 .setParameter("newOwner", newOwner)
                 .setParameter("oldOwner", oldOwner)
                 .executeUpdate();
+    }
+
+    /**
+     * Procura utilizadores filtrando pelo seu estado atual no sistema.
+     * * @param state O estado desejado (PENDING, ACTIVE, DISABLED).
+     * @return Uma lista de entidades {@link UserEntity} que correspondem ao estado fornecido.
+     */
+    public List<UserEntity> findUsersByState(UserState state) {
+        try {
+            return em.createQuery("SELECT u FROM UserEntity u WHERE u.state = :state", UserEntity.class)
+                    .setParameter("state", state)
+                    .getResultList();
+        } catch (Exception e) {
+            // Retorna lista vazia em caso de erro para evitar NullPointer no Bean
+            return new ArrayList<>();
+        }
     }
 
     /**
