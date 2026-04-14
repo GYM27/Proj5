@@ -1,5 +1,6 @@
 package aor.paj.projecto5.bean;
 
+import aor.paj.projecto5.utils.UserState;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
@@ -14,6 +15,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Enterprise JavaBean (EJB) Stateless responsável pela lógica de negócio
+ * associada à gestão de Leads (Oportunidades).
+ * Centraliza as operações de conversão (DTO <-> Entidade), regras de negócio
+ * para utilizadores normais e operações avançadas para administradores.
+ */
 @Stateless
 public class LeadsBean implements Serializable {
     @Serial
@@ -28,8 +35,17 @@ public class LeadsBean implements Serializable {
     @Inject
     UserDao userDao;
 
-    // HELPERS -------------------------------------------------------------
+    // =================================================================================
+    // HELPERS (Mapeamento DTO <-> Entidade)
+    // =================================================================================
 
+    /**
+     * Converte uma entidade LeadEntity num LeadDTO para envio ao Frontend.
+     * Mapeia os dados do dono (owner) caso a lead esteja associada a um utilizador.
+     *
+     * @param entity A entidade vinda da base de dados.
+     * @return O DTO populado ou null caso a entidade seja nula.
+     */
     public LeadDTO entityToDTO(LeadEntity entity) {
         if (entity == null) return null;
         LeadDTO dto = new LeadDTO();
@@ -39,16 +55,25 @@ public class LeadsBean implements Serializable {
         dto.setState(entity.getLeadState().getStateId());
         dto.setDate(entity.getData());
         dto.setSoftDeleted(entity.isSoftDeleted());
-        // Aceder ao firstName através do Owner
+
+        // Aceder aos dados através do Owner
         if (entity.getOwner() != null) {
-            dto.setName(entity.getOwner().getFirstName());
-            dto.setName(entity.getOwner().getLastName());
+
+            dto.setName(entity.getOwner().getFirstName() + " " + entity.getOwner().getLastName());
+
+            dto.setFirstName(entity.getOwner().getFirstName());
+            dto.setLastName(entity.getOwner().getLastName());
         }
-        dto.setFirstName(entity.getOwner().getFirstName());
-        dto.setLastName(entity.getOwner().getLastName());
         return dto;
     }
 
+    /**
+     * Converte um LeadDTO numa nova LeadEntity, associando-lhe um dono.
+     *
+     * @param dto Os dados submetidos pelo utilizador.
+     * @param owner A entidade do utilizador que será o dono da Lead.
+     * @return A nova entidade pronta a ser persistida.
+     */
     private LeadEntity DTOToEntity(LeadDTO dto, UserEntity owner) {
         LeadEntity entity = new LeadEntity();
         entity.setTitulo(dto.getTitle());
@@ -59,6 +84,12 @@ public class LeadsBean implements Serializable {
         return entity;
     }
 
+    /**
+     * Converte uma lista de Entidades numa lista de DTOs.
+     *
+     * @param entities Lista de LeadEntity.
+     * @return Lista de LeadDTO correspondente.
+     */
     private List<LeadDTO> toDTOList(List<LeadEntity> entities) {
         if (entities == null) return Collections.emptyList();
         return entities.stream()
@@ -66,10 +97,16 @@ public class LeadsBean implements Serializable {
                 .collect(Collectors.toList());
     }
 
-    // FUNCIONALIDADES DE USER ------------------------------------------
+    // =================================================================================
+    // FUNCIONALIDADES DE USER
+    // =================================================================================
 
     /**
-     * Adicionar Lead via Token
+     * Cria uma nova lead associada ao utilizador autenticado pelo token.
+     *
+     * @param token Token de sessão do utilizador.
+     * @param dto Dados da nova lead a criar.
+     * @return O DTO da lead recém-criada (com ID gerado).
      */
     public LeadDTO addLead(String token, LeadDTO dto) {
         UserEntity owner = tokenBean.getUserEntityByToken(token);
@@ -81,7 +118,12 @@ public class LeadsBean implements Serializable {
     }
 
     /**
-     * Listar leads do utilizador autenticado (Ativas ou na Lixeira)
+     * Lista as leads pertencentes ao utilizador autenticado.
+     * Permite alternar entre leads ativas e leads na lixeira.
+     *
+     * @param token Token de sessão do utilizador.
+     * @param softDeleted Define se a query deve buscar as leads apagadas (true) ou ativas (false).
+     * @return Lista de leads formatadas em DTO.
      */
     public List<LeadDTO> getLeadsByToken(String token, Boolean softDeleted) {
         UserEntity user = tokenBean.getUserEntityByToken(token);
@@ -103,7 +145,10 @@ public class LeadsBean implements Serializable {
     }
 
     /**
-     * Obter lead por ID
+     * Obtém uma lead específica através do seu ID.
+     *
+     * @param leadId O identificador único da lead.
+     * @return O LeadDTO correspondente.
      */
     public LeadDTO getLeadById(Long leadId) {
         LeadEntity entity = leadDao.getLeadByLeadID(leadId);
@@ -111,7 +156,11 @@ public class LeadsBean implements Serializable {
     }
 
     /**
-     * Editar Lead existente
+     * Edita os dados base de uma lead existente (Título, Descrição e Estado).
+     *
+     * @param leadId O identificador único da lead a editar.
+     * @param dto Os novos dados a aplicar.
+     * @return O DTO da lead atualizada.
      */
     public LeadDTO editLead(Long leadId, LeadDTO dto) {
         LeadEntity lead = leadDao.getLeadByLeadID(leadId);
@@ -126,7 +175,9 @@ public class LeadsBean implements Serializable {
     }
 
     /**
-     * Eliminação lógica (Soft Delete)
+     * Move uma lead para a lixeira (Eliminação lógica).
+     *
+     * @param leadId O identificador único da lead a desativar.
      */
     public void softDeleteLead(Long leadId) {
         LeadEntity lead = leadDao.getLeadByLeadID(leadId);
@@ -136,10 +187,14 @@ public class LeadsBean implements Serializable {
         }
     }
 
-    // FUNCIONALIDADES DE ADMIN ----------------------------------------
+    // =================================================================================
+    // FUNCIONALIDADES DE ADMIN
+    // =================================================================================
 
     /**
-     * Restaura uma lead que estava na lixeira (Undelete).
+     * Restaura uma lead que estava na lixeira, voltando a marcá-la como ativa.
+     *
+     * @param leadId O identificador único da lead a restaurar.
      */
     public void restoreLead(Long leadId) {
         LeadEntity lead = leadDao.getLeadByLeadID(leadId);
@@ -152,7 +207,13 @@ public class LeadsBean implements Serializable {
 
 
     /**
-     * Listagem com filtros para Administrador
+     * Lista leads globalmente com base em múltiplos filtros dinâmicos.
+     * Exclusivo para administradores.
+     *
+     * @param stateId ID do estado da lead (opcional).
+     * @param userId ID do dono da lead (opcional).
+     * @param softDeleted Estado de eliminação lógica da lead (opcional).
+     * @return Lista filtrada de LeadDTOs.
      */
     public List<LeadDTO> getLeadsWithFilters(Integer stateId, Long userId, Boolean softDeleted) {
         List<LeadEntity> entities = leadDao.findLeadsWithFilters(stateId, userId, softDeleted);
@@ -160,7 +221,13 @@ public class LeadsBean implements Serializable {
     }
 
     /**
-     * Edição total por Administrador
+     * Edição com privilégios totais de Administrador.
+     * Permite alterar propriedades exclusivas, como recuperar uma lead diretamente na edição.
+     *
+     * @param leadId O identificador único da lead alvo.
+     * @param dto Os novos dados a aplicar.
+     * @return O DTO da lead resultante.
+     * @throws WebApplicationException Se a lead não existir (404) ou os dados forem inválidos (400).
      */
     public LeadDTO adminSuperEdit(Long leadId, LeadDTO dto) {
         if (dto == null) throw new WebApplicationException("Dados de edição inválidos", 400);
@@ -185,24 +252,41 @@ public class LeadsBean implements Serializable {
     }
 
     /**
-     * Admin adiciona lead diretamente a um utilizador
+     * Administrador cria uma lead atribuindo-a diretamente a um utilizador específico.
+     *
+     * @param userId ID do utilizador destino (owner) que vai receber a lead.
+     * @param dto Dados da nova lead a ser criada.
+     * @return O DTO com a lead recém-criada.
+     * @throws WebApplicationException 404 se o user não existir, 403 se o user não estiver ativo.
      */
     public LeadDTO addLeadToUser(Long userId, LeadDTO dto) {
-        // Homogéneo: Uso do userDao.find herdado do AbstractDao
+        // 1. Busca o utilizador à base de dados
         UserEntity owner = userDao.find(userId);
 
-        if (owner == null || owner.isSoftDelete()) {
-            throw new WebApplicationException("Utilizador destino não encontrado ou inativo", 404);
+        // 2. Validação 1: O utilizador existe?
+        if (owner == null) {
+            throw new WebApplicationException("Utilizador destino não encontrado.", 404);
         }
 
+        // 3. Validação 2: A nova lógica de Estados
+        // Impede o Admin de atribuir leads a contas DISABLED ou PENDING
+        if (owner.getState() != UserState.ACTIVE) {
+            throw new WebApplicationException("Não é possível atribuir leads: o utilizador encontra-se inativo ou pendente.", 403);
+        }
+
+        // 4. Criação e Persistência
         LeadEntity newLead = DTOToEntity(dto, owner);
         leadDao.persist(newLead);
 
+        // 5. Retorna o DTO atualizado
         return entityToDTO(newLead);
     }
 
     /**
-     * Eliminação física do registo
+     * Remove permanentemente (Hard Delete) uma lead da base de dados.
+     *
+     * @param leadId ID da lead a remover.
+     * @throws WebApplicationException 404 se a lead não existir.
      */
     public void hardDeleteLead(Long leadId) {
         LeadEntity lead = leadDao.getLeadByLeadID(leadId);
@@ -214,32 +298,39 @@ public class LeadsBean implements Serializable {
     }
 
     /**
-     * Soft Delete em massa por utilizador
+     * Move todas as leads de um determinado utilizador para a lixeira de uma só vez.
+     *
+     * @param userId O identificador do dono das leads.
+     * @return O número de registos alterados na base de dados.
+     * @throws WebApplicationException 404 se o utilizador não existir.
      */
     public int softDeleteAllFromUser(Long userId) {
-        // Homogéneo: Uso do userDao.find
         if (userDao.find(userId) == null) throw new WebApplicationException("User not found", 404);
-
         return leadDao.bulkUpdateSoftDelete(userId, true);
     }
 
     /**
-     * Recuperação em massa por utilizador (Undelete)
+     * Restaura em massa todas as leads de um utilizador que se encontravam na lixeira.
+     *
+     * @param userId O identificador do dono das leads.
+     * @return O número de registos alterados na base de dados.
+     * @throws WebApplicationException 404 se o utilizador não existir.
      */
     public int undeleteAllFromUser(Long userId) {
-        // Homogéneo: Uso do userDao.find
         if (userDao.find(userId) == null) throw new WebApplicationException("User not found", 404);
-
         return leadDao.bulkUpdateSoftDelete(userId, false);
     }
 
     /**
-     * Esvaziar a lixeira (Hard Delete em massa) por utilizador
+     * Elimina fisicamente todas as leads da lixeira de um determinado utilizador.
+     * Ação irreversível.
+     *
+     * @param userId O identificador do dono das leads na lixeira.
+     * @return O número de registos permanentemente apagados.
+     * @throws WebApplicationException 404 se o utilizador não existir.
      */
     public int emptyTrash(Long userId) {
-        // Homogéneo: Uso do userDao.find
         if (userDao.find(userId) == null) throw new WebApplicationException("User not found", 404);
-
         // Delega para o DAO a execução da query de remoção física
         return leadDao.emptyTrashByUserId(userId);
     }

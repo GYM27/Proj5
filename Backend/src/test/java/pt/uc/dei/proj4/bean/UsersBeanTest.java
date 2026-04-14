@@ -13,6 +13,7 @@ import aor.paj.projecto5.entity.LeadEntity;
 import aor.paj.projecto5.entity.UserEntity;
 import aor.paj.projecto5.utils.UserRoles;
 import aor.paj.projecto5.utils.LeadState;
+import aor.paj.projecto5.utils.UserState;
 import jakarta.ws.rs.WebApplicationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -62,7 +63,7 @@ public class UsersBeanTest {
         u.setEmail("test@test.com");
         u.setFirstName("Joao");
         u.setUserRole(UserRoles.NORMAL);
-        u.setSoftDelete(false);
+        u.setState(UserState.DISABLED);
         doReturn(1L).when(u).getId();
 
         u2 = spy(new UserEntity());
@@ -123,10 +124,17 @@ public class UsersBeanTest {
     @Test
     @DisplayName("Deve realizar soft delete com sucesso")
     void testSoftDeleteUser() {
+        // 1. Executa a ação
         assertDoesNotThrow(() -> usersBean.softDeleteUser(1L));
-        assertTrue(u.isSoftDelete());
-    }
 
+        // 2. Recupera o utilizador para verificar o estado atualizado
+        UserBaseDTO updatedUser = usersBean.getUserBaseDTOById(1L);
+
+        // 3. Verifica se o estado é efetivamente DISABLED
+        // Nota: Comparamos a String porque o DTO devolve o nome do Enum
+        assertEquals(UserState.DISABLED.name(), updatedUser.getState(),
+                "O estado do utilizador deveria ser DISABLED após o soft delete");
+    }
     // --- TESTES DE LEADS (ADAPTADOS PARA ESTA CLASSE) ---
 
     @Test

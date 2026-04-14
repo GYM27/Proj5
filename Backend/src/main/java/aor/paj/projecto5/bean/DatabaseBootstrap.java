@@ -3,6 +3,7 @@ package aor.paj.projecto5.bean;
 import aor.paj.projecto5.dao.UserDao;
 import aor.paj.projecto5.entity.UserEntity;
 import aor.paj.projecto5.utils.UserRoles;
+import aor.paj.projecto5.utils.UserState;
 import jakarta.annotation.PostConstruct;
 import jakarta.ejb.EJB;
 import jakarta.ejb.Singleton;
@@ -31,7 +32,7 @@ public class DatabaseBootstrap {
             admin.setLastName("Administrator");
             admin.setContact("900000000"); // Campo unique e nullable=false
             admin.setUserRole(UserRoles.ADMIN); // Usando o teu Enum
-            admin.setSoftDelete(false);
+            admin.setState(UserState.ACTIVE);
 
             try {
                 userDao.persist(admin);

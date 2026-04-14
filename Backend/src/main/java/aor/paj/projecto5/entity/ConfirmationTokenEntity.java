@@ -16,6 +16,10 @@ public class ConfirmationTokenEntity implements Serializable {
     @Column(nullable = false, unique = true)
     private String token;
 
+
+    @Column(nullable = false, unique = true)
+    private String email;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -24,22 +28,17 @@ public class ConfirmationTokenEntity implements Serializable {
 
     private LocalDateTime confirmedAt;
 
-    // Relação com o utilizador
-    @OneToOne(targetEntity = UserEntity.class, fetch = FetchType.EAGER)
-    @JoinColumn(nullable = false, name = "user_id")
-    private UserEntity user;
-
     public ConfirmationTokenEntity() {}
 
-    // Construtor auxiliar para facilitar a criação no UsersBean
-    public ConfirmationTokenEntity(String token, UserEntity user, int expirationHours) {
+    // Construtor auxiliar atualizado para receber a String do email
+    public ConfirmationTokenEntity(String token, String email, int expirationHours) {
         this.token = token;
-        this.user = user;
+        this.email = email;
         this.createdAt = LocalDateTime.now();
         this.expiresAt = LocalDateTime.now().plusHours(expirationHours);
     }
 
-    // Getters e Setters
+    // --- Getters e Setters ---
 
     public Long getId() {
         return id;
@@ -55,6 +54,14 @@ public class ConfirmationTokenEntity implements Serializable {
 
     public void setToken(String token) {
         this.token = token;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -79,13 +86,5 @@ public class ConfirmationTokenEntity implements Serializable {
 
     public void setConfirmedAt(LocalDateTime confirmedAt) {
         this.confirmedAt = confirmedAt;
-    }
-
-    public UserEntity getUser() {
-        return user;
-    }
-
-    public void setUser(UserEntity user) {
-        this.user = user;
     }
 }

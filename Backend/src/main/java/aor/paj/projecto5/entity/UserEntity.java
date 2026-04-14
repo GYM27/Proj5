@@ -18,7 +18,8 @@ public class UserEntity implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
-    //definir um id autoincremantável
+
+      //definir um id autoincremantável
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="id", nullable = false, unique = true,updatable = false)
@@ -171,5 +172,13 @@ public class UserEntity implements Serializable {
 
     public Long getId() {
         return id;
+    }
+
+    public UserState getState() {
+        return state;
+    }
+
+    public void setState(UserState state) {
+        this.state = state;
     }
 }

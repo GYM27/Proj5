@@ -1,13 +1,16 @@
 package aor.paj.projecto5.bean;
 
+import aor.paj.projecto5.dao.UserDao;
 import aor.paj.projecto5.dto.LoginDTO;
 import aor.paj.projecto5.dto.LoginResponseDTO;
-import jakarta.ejb.Stateless;
-import jakarta.inject.Inject;
-import aor.paj.projecto5.dao.UserDao;
 import aor.paj.projecto5.dto.UserBaseDTO;
 import aor.paj.projecto5.dto.UserDTO;
+import aor.paj.projecto5.entity.ConfirmationTokenEntity;
 import aor.paj.projecto5.entity.UserEntity;
+import aor.paj.projecto5.utils.UserRoles;
+import aor.paj.projecto5.utils.UserState;
+import jakarta.ejb.Stateless;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
 import java.io.Serial;
 import java.io.Serializable;
@@ -16,8 +19,9 @@ import java.util.List;
 
 /**
  * Enterprise JavaBean (EJB) Stateless responsável pela lógica de negócio
- * e gestão de Utilizadores (Users).
- * Contém métodos para registo, edição, autenticação e listagem de utilizadores.
+ * e gestão de Utilizadores no sistema.
+ * * Implementa um fluxo de pré-registo baseado em tokens de email e
+ * utiliza métodos de mapeamento centralizados para garantir a integridade dos dados.
  */
 @Stateless
 public class UsersBean implements Serializable {
@@ -25,25 +29,51 @@ public class UsersBean implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    /**
-     * Data Access Object (DAO) para operações na base de dados relacionadas com a entidade UserEntity.
-     */
     @Inject
-    UserDao userDao;
+    private UserDao userDao;
+
+    @Inject
+    private TokenBean tokenBean;
+
+    @Inject
+    private ConfirmationTokenBean confirmationTokenBean;
+
+    // =================================================================================
+    // MÉTODOS DE MAPEAMENTO (DRY - DON'T REPEAT YOURSELF)
+    // =================================================================================
 
     /**
-     * Bean responsável pela criação, validação e gestão de tokens de autenticação.
-     */
-    @Inject
-    TokenBean tokenBean;
-
-    /**
-     * Método auxiliar para mapear dados de um Data Transfer Object (DTO) para uma Entidade.
-     * Atualiza apenas os campos gerais de perfil (nome, email, contacto, foto).
-     * O username nunca é alterado por este método; o Role e SoftDelete são tratados separadamente.
+     * SENTIDO: DB -> FRONTEND
+     * Preenche os campos comuns a qualquer DTO (Base ou Completo) a partir de uma entidade.
+     * Centraliza a conversão de nomes de campos (ex: contact -> cellphone).
      *
-     * @param dto O DTO contendo os novos dados do utilizador.
-     * @param entity A entidade a ser atualizada.
+     * @param entity A entidade de origem vinda da base de dados.
+     * @param dto O DTO de destino (pode ser UserBaseDTO ou UserDTO devido à herança).
+     */
+    private void fillBaseData(UserEntity entity, UserBaseDTO dto) {
+        dto.setId(entity.getId());
+        dto.setFirstName(entity.getFirstName());
+        dto.setLastName(entity.getLastName());
+        dto.setUsername(entity.getUsername());
+        dto.setEmail(entity.getEmail());
+        dto.setCellphone(entity.getContact());
+        dto.setPhotoUrl(entity.getPhoto());
+
+        if (entity.getUserRole() != null) {
+            dto.setRole(entity.getUserRole().name());
+        }
+        if (entity.getState() != null) {
+            dto.setState(entity.getState().name());
+        }
+    }
+
+    /**
+     * SENTIDO: FRONTEND -> DB
+     * Mapeia os dados recebidos de um DTO para uma entidade UserEntity.
+     * Centraliza a atribuição de campos obrigatórios para evitar falhas de persistência.
+     *
+     * @param dto O DTO contendo os dados submetidos pelo utilizador.
+     * @param entity A entidade alvo a ser preenchida/atualizada.
      */
     private void mapDtoToEntity(UserBaseDTO dto, UserEntity entity) {
         entity.setFirstName(dto.getFirstName());
@@ -51,89 +81,125 @@ public class UsersBean implements Serializable {
         entity.setEmail(dto.getEmail());
         entity.setContact(dto.getCellphone());
         entity.setPhoto(dto.getPhotoUrl());
-
+        entity.setUsername(dto.getUsername());
     }
 
+    // =================================================================================
+    // CONVERSORES PÚBLICOS
+    // =================================================================================
+
     /**
-     * Converte uma entidade UserEntity para o seu formato UserBaseDTO.
-     * Este DTO é seguro para listagens e perfis públicos, pois omite dados sensíveis como a password.
+     * Converte uma UserEntity para UserBaseDTO (perfil público/listagens).
      *
-     * @param entity A entidade {@link UserEntity} a converter.
-     * @return O {@link UserBaseDTO} correspondente, ou null se a entidade for null.
+     * @param entity A entidade a converter.
+     * @return O DTO preenchido.
      */
     public UserBaseDTO convertToUserBaseDTO(UserEntity entity) {
         if (entity == null) return null;
         UserBaseDTO dto = new UserBaseDTO();
-        dto.setId(entity.getId());
-        dto.setFirstName(entity.getFirstName());
-        dto.setLastName(entity.getLastName());
-        dto.setUsername(entity.getUsername());
-        dto.setEmail(entity.getEmail());
-        dto.setCellphone(entity.getContact());
-        dto.setPhotoUrl(entity.getPhoto());
-        dto.setSoftDelete(entity.isSoftDelete());
-        if (entity.getUserRole() != null) {
-            dto.setRole(entity.getUserRole().name());
-        }
+        fillBaseData(entity, dto);
         return dto;
     }
 
     /**
-     * Converte uma entidade UserEntity para o seu formato completo UserDTO.
-     * Este DTO inclui campos privados (username e password), sendo adequado para
-     * operações no próprio perfil ou fluxos internos de autenticação.
+     * Converte uma UserEntity para UserDTO (inclui dados sensíveis como password).
      *
-     * @param entity A entidade {@link UserEntity} a converter.
-     * @return O {@link UserDTO} correspondente, ou null se a entidade for null.
+     * @param entity A entidade a converter.
+     * @return O DTO completo preenchido.
      */
     public UserDTO convertToUserDTO(UserEntity entity) {
         if (entity == null) return null;
         UserDTO dto = new UserDTO();
-        // Preenche campos base
-        dto.setId(entity.getId());
-        dto.setFirstName(entity.getFirstName());
-        dto.setLastName(entity.getLastName());
-        dto.setEmail(entity.getEmail());
-        dto.setCellphone(entity.getContact());
-        dto.setPhotoUrl(entity.getPhoto());
-        dto.setSoftDelete(entity.isSoftDelete());
-        dto.setRole(entity.getUserRole() != null ? entity.getUserRole().name() : null);
-        // Campos privados
-        dto.setUsername(entity.getUsername());
+        fillBaseData(entity, dto);
         dto.setPassword(entity.getPassword());
         return dto;
     }
 
-    // --- MÉTODOS DE CONSULTA ---
+    // =================================================================================
+    // FLUXO DE REGISTO EM DOIS PASSOS (PRÉ-REGISTO)
+    // =================================================================================
 
     /**
-     * Obtém os dados completos (UserDTO) do utilizador atualmente autenticado através do seu token.
+     * PASSO 1: Inicia o processo de registo validando o email e gerando um token.
+     * Não cria o utilizador na base de dados nesta fase.
      *
-     * @param token O token de autenticação fornecido no cabeçalho da requisição.
-     * @return O {@link UserDTO} correspondente ao utilizador autenticado.
+     * @param email O email que o utilizador deseja registar.
+     * @throws WebApplicationException 409 se o email já estiver associado a uma conta ativa.
      */
-    public UserDTO getUserDTOByToken(String token) {
-        UserEntity user = tokenBean.getUserEntityByToken(token);
-        return convertToUserDTO(user);
+    public void requestRegistration(String email) {
+        if (userDao.findUserByEmail(email) != null) {
+            throw new WebApplicationException("Este email já se encontra registado.", 409);
+        }
+
+        // Cria token associado apenas ao email
+        String token = confirmationTokenBean.createTokenForEmail(email);
+
+        // Simulação de envio de email
+        System.out.println("DEBUG: Link enviado para " + email + " -> http://localhost:3000/register?token=" + token);
     }
 
     /**
-     * Obtém os dados básicos (UserBaseDTO) de um utilizador através do seu ID.
+     * PASSO 2: Conclui o registo após a validação do token de email.
+     * Cria a entidade UserEntity já com estado ACTIVE.
+     *
+     * @param tokenString O token recebido por email.
+     * @param userDTO Os dados completos do formulário de registo.
+     * @throws WebApplicationException Se o token for inválido, o email não coincidir ou o username já existir.
+     */
+    public void completeRegistration(String tokenString, UserDTO userDTO) {
+        ConfirmationTokenEntity tokenEntity = confirmationTokenBean.validateToken(tokenString);
+
+        if (tokenEntity == null) {
+            throw new WebApplicationException("Token de confirmação inválido ou expirado.", 401);
+        }
+
+        if (!tokenEntity.getEmail().equalsIgnoreCase(userDTO.getEmail())) {
+            throw new WebApplicationException("O email do formulário não corresponde ao email do convite.", 403);
+        }
+
+        if (userDao.findUserByUsername(userDTO.getUsername()) != null) {
+            throw new WebApplicationException("O nome de utilizador já está em uso.", 409);
+        }
+
+        UserEntity newUser = new UserEntity();
+        mapDtoToEntity(userDTO, newUser);
+        newUser.setPassword(userDTO.getPassword());
+
+        // Como o email foi validado pelo token, a conta nasce ACTIVE
+        newUser.setState(UserState.ACTIVE);
+        newUser.setUserRole(UserRoles.NORMAL);
+
+        userDao.persist(newUser);
+
+        // Remove o token para não ser reutilizado
+        confirmationTokenBean.deleteToken(tokenEntity);
+    }
+
+    // =================================================================================
+    // GESTÃO E CONSULTA DE PERFIS
+    // =================================================================================
+
+    // =================================================================================
+    // MÉTODOS DE CONSULTA (LEITURA)
+    // =================================================================================
+
+    /**
+     * Obtém os dados base (perfil público/admin) de um utilizador pelo seu ID.
+     * Utilizado para listagens e visualização de perfis por administradores.
      *
      * @param id O identificador único do utilizador.
-     * @return O {@link UserBaseDTO} correspondente.
+     * @return O DTO correspondente, ou null se a entidade não existir na base de dados.
      */
     public UserBaseDTO getUserBaseDTOById(Long id) {
         return convertToUserBaseDTO(userDao.find(id));
     }
 
     /**
-     * Procura um utilizador pelo seu username.
-     * Necessário para carregar a página de perfil quando o utilizador acede através do URL partilhável.
+     * Obtém os dados base de um utilizador pesquisando pelo seu username.
      *
-     * @param username O nome de utilizador a pesquisar.
-     * @return O DTO do utilizador encontrado.
-     * @throws WebApplicationException Se o utilizador não existir (Erro 404).
+     * @param username O nome de utilizador a procurar.
+     * @return O DTO correspondente.
+     * @throws WebApplicationException com status 404 se o utilizador não for encontrado.
      */
     public UserBaseDTO getUserBaseDTOByUsername(String username) {
         UserEntity entity = userDao.findUserByUsername(username);
@@ -143,129 +209,137 @@ public class UsersBean implements Serializable {
         return convertToUserBaseDTO(entity);
     }
 
-    // --- GESTÃO DE UTILIZADORES ---
-
     /**
-     * Regista um novo utilizador no sistema.
-     * Valida a unicidade do username e do email antes de persistir a entidade.
+     * Obtém os dados completos (incluindo campos privados) do utilizador autenticado.
+     * Este método é acedido através do token de sessão atual.
      *
-     * @param userDTO O DTO contendo os dados do novo utilizador.
-     * @throws WebApplicationException Se o username ou email já estiverem em uso (HTTP 409).
+     * @param token O token de sessão enviado no cabeçalho (header) do pedido.
+     * @return O UserDTO completo pertencente ao dono do token.
      */
-    public void registerUser(UserDTO userDTO) {
-        if (userDao.findUserByUsername(userDTO.getUsername()) != null)
-            throw new WebApplicationException("Username já existe.", 409);
-
-        if (userDao.findUserByEmail(userDTO.getEmail()) != null)
-            throw new WebApplicationException("Email já registado.", 409);
-
-        UserEntity newUser = new UserEntity();
-        mapDtoToEntity(userDTO, newUser);
-        newUser.setUsername(userDTO.getUsername());
-        newUser.setPassword(userDTO.getPassword());
-        userDao.persist(newUser);
+    public UserDTO getUserDTOByToken(String token) {
+        UserEntity user = tokenBean.getUserEntityByToken(token);
+        return convertToUserDTO(user);
     }
 
     /**
-     * Permite que um utilizador autenticado edite o seu próprio perfil.
-     * Valida se o novo email inserido não pertence já a outra conta existente.
+     * Edita os dados do próprio utilizador autenticado.
      *
-     * @param token O token do utilizador que faz o pedido.
-     * @param userDTO Os novos dados a aplicar ao perfil.
-     * @throws WebApplicationException Se o utilizador não for encontrado (404) ou o email já estiver em uso por outro (409).
+     * @param token Token de sessão ativa.
+     * @param userDTO Novos dados a aplicar.
      */
     public void putEditOwnUser(String token, UserDTO userDTO) {
         UserEntity user = tokenBean.getUserEntityByToken(token);
-        if (user == null) throw new WebApplicationException("User não encontrado", 404);
+        if (user == null) throw new WebApplicationException("Sessão inválida", 401);
 
-        // Valida se o novo email já pertence a outro ID
         UserEntity other = userDao.findUserByEmail(userDTO.getEmail());
-        if (other != null && !other.getId().equals(user.getId()))
-            throw new WebApplicationException("Email em uso.", 409);
+        if (other != null && !other.getId().equals(user.getId())) {
+            throw new WebApplicationException("Email já em uso por outro utilizador.", 409);
+        }
 
         mapDtoToEntity(userDTO, user);
         user.setPassword(userDTO.getPassword());
     }
 
     /**
-     * Permite que um Administrador edite o perfil de qualquer utilizador no sistema.
-     * Permite a alteração do nível de acesso (Role) do utilizador.
+     * Edição administrativa de qualquer utilizador.
+     * Permite alteração de Role e de State diretamente.
      *
-     * @param id O identificador do utilizador a editar.
-     * @param dto Os novos dados do utilizador (incluindo potencialmente um novo role).
-     * @throws WebApplicationException Se o utilizador não for encontrado (404) ou o email já estiver em uso (409).
+     * @param id ID do utilizador alvo.
+     * @param dto Novos dados e metadados.
      */
     public void putEditUser(Long id, UserBaseDTO dto) {
         UserEntity user = userDao.find(id);
         if (user == null) throw new WebApplicationException("Utilizador não encontrado", 404);
 
-        // Valida email duplicado (excluindo o próprio user)
         UserEntity other = userDao.findUserByEmail(dto.getEmail());
-        if (other != null && !other.getId().equals(id))
+        if (other != null && !other.getId().equals(id)) {
             throw new WebApplicationException("Email já associado a outra conta.", 409);
+        }
 
         mapDtoToEntity(dto, user);
-        // O Admin também pode alterar o Role se necessário
+
         if (dto.getRole() != null) {
-            user.setUserRole(aor.paj.projecto5.utils.UserRoles.valueOf(dto.getRole()));
+            user.setUserRole(UserRoles.valueOf(dto.getRole()));
+        }
+        if (dto.getState() != null) {
+            user.setState(UserState.valueOf(dto.getState()));
         }
     }
 
     /**
-     * Desativa um utilizador (Soft Delete), impedindo o seu login sem remover o seu histórico de dados.
+     * Desativa logicamente um utilizador (Estado DISABLED).
      *
-     * @param id O ID do utilizador a desativar.
-     * @throws WebApplicationException Se o utilizador não for encontrado (HTTP 404).
+     * @param id ID do utilizador.
      */
     public void softDeleteUser(Long id) {
         UserEntity user = userDao.find(id);
         if (user == null) throw new WebApplicationException("Não encontrado", 404);
-        user.setSoftDelete(true);
+        user.setState(UserState.DISABLED);
     }
 
     /**
-     * Reativa um utilizador previamente desativado (Remove o Soft Delete).
+     * Reativa um utilizador (Estado ACTIVE).
      *
-     * @param id O ID do utilizador a reativar.
-     * @throws WebApplicationException Se o utilizador não for encontrado (HTTP 404).
+     * @param id ID do utilizador.
      */
     public void softUnDeleteUser(Long id) {
         UserEntity user = userDao.find(id);
         if (user == null) throw new WebApplicationException("Não encontrado", 404);
-        user.setSoftDelete(false);
+        user.setState(UserState.ACTIVE);
     }
 
     /**
-     * Remove permanentemente um utilizador do sistema (Hard Delete).
-     * Para manter a integridade referencial, todos os registos associados a este utilizador
-     * são transferidos para um utilizador de sistema estático denominado "deleted_user".
+     * Remove permanentemente o utilizador e transfere os seus dados para o utilizador de sistema.
      *
-     * @param id O ID do utilizador a ser removido fisicamente.
-     * @throws WebApplicationException Se o utilizador alvo não for encontrado ou se o utilizador de sistema falhar.
+     * @param id ID do utilizador a remover fisicamente.
      */
     public void deleteUser(Long id) {
         UserEntity userToDelete = userDao.find(id);
         if (userToDelete == null) throw new WebApplicationException("Não encontrado", 404);
 
         UserEntity systemUser = userDao.findUserByUsername("deleted_user");
-        if (systemUser == null) throw new WebApplicationException("Erro: deleted_user não existe.", 500);
-
         userDao.transferOwnership(userToDelete, systemUser);
         userDao.hardDelete(id);
     }
 
     /**
-     * Obtém uma lista de todos os utilizadores registados no sistema.
-     * Oculta o utilizador técnico "deleted_user" para não aparecer em listagens e dashboards.
+     * Autentica o utilizador verificando credenciais e se o estado é ACTIVE.
      *
-     * @return Uma lista de objetos {@link UserBaseDTO} correspondentes aos utilizadores.
+     * @param loginDTO Credenciais (username e password).
+     * @return LoginResponseDTO com token se sucesso; null caso contrário.
+     */
+    public LoginResponseDTO authenticateUser(LoginDTO loginDTO) {
+        if (loginDTO == null || loginDTO.getUsername() == null) return null;
+
+        UserEntity userEntity = userDao.findUserByUsername(loginDTO.getUsername());
+
+        if (userEntity != null &&
+                userEntity.getPassword().equals(loginDTO.getPassword()) &&
+                userEntity.getState() == UserState.ACTIVE) {
+
+            String token = tokenBean.generateNewToken(userEntity);
+
+            return new LoginResponseDTO(
+                    userEntity.getId(),
+                    userEntity.getFirstName(),
+                    userEntity.getUserRole(),
+                    token,
+                    userEntity.getPhoto()
+            );
+        }
+        return null;
+    }
+
+    /**
+     * Obtém a lista completa de utilizadores ativos e inativos, exceto o utilizador de sistema.
+     *
+     * @return Lista de UserBaseDTO.
      */
     public List<UserBaseDTO> getAllUsers() {
         List<UserEntity> entities = userDao.findAll();
         List<UserBaseDTO> result = new ArrayList<>();
 
         for (UserEntity u : entities) {
-            // Filtra o utilizador de sistema
             if (!u.getUsername().equals("deleted_user")) {
                 result.add(convertToUserBaseDTO(u));
             }
@@ -273,46 +347,52 @@ public class UsersBean implements Serializable {
         return result;
     }
 
+    // =================================================================================
+    // RECUPERAÇÃO DE PASSWORD
+    // =================================================================================
+
     /**
-     * Autentica um utilizador verificando as credenciais e o estado da conta.
-     * Garante que o utilizador existe, a password coincide e que a conta não se encontra desativada.
-     * Se a autenticação tiver sucesso, gera e devolve um novo token.
+     * PASSO 1: Inicia o processo de recuperação de password.
+     * Gera um token de segurança associado ao email do utilizador.
      *
-     * @param loginDTO Dados vindos do formulário de login (username e password).
-     * @return Um {@link LoginResponseDTO} contendo os dados base do utilizador e o token gerado,
-     * ou null caso as credenciais sejam inválidas ou a conta inativa.
+     * @param email O email da conta a recuperar.
      */
-    public LoginResponseDTO authenticateUser(LoginDTO loginDTO) {
-        if (loginDTO == null || loginDTO.getUsername() == null) {
-            return null;
+    public void requestPasswordReset(String email) {
+        UserEntity user = userDao.findUserByEmail(email);
+
+        // Segurança: Se o email não existir, não dizemos "Erro".
+        // Dizemos apenas que o email foi enviado para evitar que hackers saibam quem tem conta.
+        if (user != null && user.getState() == UserState.ACTIVE) {
+            String token = confirmationTokenBean.createTokenForEmail(email);
+            System.out.println("DEBUG: Link de Recuperação para " + email + " -> http://localhost:3000/reset-password?token=" + token);
+        }
+    }
+
+    /**
+     * PASSO 2: Define uma nova password usando o token de validação.
+     *
+     * @param tokenString O token recebido por email.
+     * @param newPassword A nova password escolhida pelo utilizador.
+     * @throws WebApplicationException 401 se o token for inválido/expirado.
+     */
+    public void resetPassword(String tokenString, String newPassword) {
+        // 1. Valida o token
+        ConfirmationTokenEntity tokenEntity = confirmationTokenBean.validateToken(tokenString);
+        if (tokenEntity == null) {
+            throw new WebApplicationException("O link de recuperação é inválido ou já expirou.", 401);
         }
 
-        // 1. Procura o utilizador pelo username
-        UserEntity userEntity = userDao.findUserByUsername(loginDTO.getUsername());
-
-        // 2. Validação de Segurança:
-        // - O utilizador tem de existir
-        // - A password tem de coincidir (estás a usar plain text por agora)
-        // - O utilizador NÃO pode estar em softDelete (inativo)
-        if (userEntity != null &&
-                userEntity.getPassword().equals(loginDTO.getPassword()) &&
-                !userEntity.isSoftDelete()) {
-
-            // 3. Se tudo estiver OK, geramos o Token
-            String token = tokenBean.generateNewToken(userEntity);
-
-            // 4. Montamos a resposta para o React
-            // CORREÇÃO: Passamos também a foto da entidade para o DTO
-            return new LoginResponseDTO(
-                    userEntity.getId(),
-                    userEntity.getFirstName(),
-                    userEntity.getUserRole(),
-                    token,
-                    userEntity.getPhoto() //
-            );
+        // 2. Encontra o utilizador pelo email guardado no token
+        UserEntity user = userDao.findUserByEmail(tokenEntity.getEmail());
+        if (user == null) {
+            throw new WebApplicationException("Utilizador não encontrado.", 404);
         }
 
-        // Se falhar qualquer condição, retornamos null (o LoginBean tratará do erro 401)
-        return null;
+        // 3. Atualiza a password
+        user.setPassword(newPassword);
+        userDao.merge(user);
+
+        // 4. Limpa o token para não ser usado duas vezes
+        confirmationTokenBean.deleteToken(tokenEntity);
     }
 }
