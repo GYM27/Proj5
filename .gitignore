@@ -1,0 +1,8 @@
+# Configurações Globais de Editores
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# Ficheiros de sistema
+Thumbs.db

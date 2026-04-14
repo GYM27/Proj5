@@ -1,10 +1,15 @@
-# Maven - IMPORTANTE
+# Maven - Compilação e Artefactos
 target/
+*.class
+*.war
+*.ear
+*.jar
 
-# IDEs
+# IDE e Sistema
 .idea/
 *.iml
-
-# Ficheiros temporários e logs
-*.log
 .DS_Store
+
+# Logs do servidor
+*.log
+3. No Projeto
