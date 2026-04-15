@@ -21,7 +21,7 @@ import java.util.HashMap;
 public class ChatEndpoint {
 
     private static final Logger logger = LogManager.getLogger(ChatEndpoint.class);
-
+    //teste
     // Mapa para associar tokens de sessão às ligações WebSocket ativas
     private HashMap<String, Session> sessions = new HashMap<>();
 
