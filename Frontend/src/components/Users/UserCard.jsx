@@ -18,7 +18,7 @@ const UserCard = ({user, onToggleStatus, onHardDelete, onViewProfile}) => {
     return (
         <Card
             /**
-             * FEEDBACK VISUAL DINÂMICO (UX - 3%):
+             * FEEDBACK VISUAL DINÂMICO :
              * - Se inativo, aplicamos 'opacity-75' e 'bg-light' para "apagar" visualmente o cartão.
              * - A borda superior muda de cor: Amarelo (Aviso) para Inativo, Verde para Ativo.
              */
