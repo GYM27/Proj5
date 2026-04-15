@@ -78,7 +78,6 @@ public class UserEntity implements Serializable {
         leads.add(lead);
         lead.setOwner(this); // Ensures the Lead knows who its owner is
     }
-
     public void addClient(ClientsEntity client) {
         this.clients.add(client);
         client.setOwner(this); // Garante que o cliente sabe quem é o dono

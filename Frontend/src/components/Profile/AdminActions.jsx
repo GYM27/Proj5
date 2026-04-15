@@ -17,7 +17,7 @@ const AdminActions = ({ isDeleted, onToggleStatus, onHardDelete }) => {
             {/* Título da secção para separar claramente as ações comuns das de Admin */}
             <h5 className="text-secondary mb-3">Ações de Administração</h5>
 
-            {/* BOTÃO DESATIVAR / REATIVAR (REGRA A9):
+            {/* BOTÃO DESATIVAR / REATIVAR:
                 - Implementa o conceito de 'Soft Delete'.
                 - Altera visualmente (cor e ícone) consoante o estado 'isDeleted'.
                 - 'Success' para reativar e 'Warning' para desativar, dando feedback visual de segurança.

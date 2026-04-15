@@ -86,7 +86,7 @@ const ConfirmActionContent = ({ type, data, onCancel, onConfirm }) => {
                     variant: "success",
                 };
 
-            // LÓGICA DINÂMICA DE UTILIZADOR (REGRA A9):
+            // LÓGICA DINÂMICA DE UTILIZADOR :
             // Alterna a mensagem consoante o utilizador esteja Ativo ou Inativo.
             case "USER_TOGGLE_STATUS": {
                 const isInactive = data?.softDelete;
@@ -98,7 +98,7 @@ const ConfirmActionContent = ({ type, data, onCancel, onConfirm }) => {
                     confirmText: isInactive ? "Sim, Reativar" : "Sim, Desativar",
                     variant: isInactive ? "success" : "warning",
                 };
-            }
+            };
 
             default:
                 return {

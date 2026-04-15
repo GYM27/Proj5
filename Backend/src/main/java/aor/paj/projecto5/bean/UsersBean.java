@@ -133,9 +133,6 @@ public class UsersBean implements Serializable {
 
         // Cria token associado apenas ao email
         String token = confirmationTokenBean.createTokenForEmail(email);
-
-        // Simulação de envio de email
-        System.out.println("DEBUG: Link enviado para " + email + " -> http://localhost:3000/register?token=" + token);
     }
 
     /**

@@ -6,6 +6,7 @@ import { userService } from "../services/userService";
 
 // Componentes extraídos
 import UserGrid from "../components/Users/UserGrid";
+import UsersHeader from "../components/Users/UserHeader";
 import { useModalManager } from "../Modal/useModalManager.jsx";
 import DynamicModal from "../Modal/DynamicModal.jsx";
 import ConfirmActionContent from "../Modal/ConfirmActionContent.jsx";
@@ -14,9 +15,6 @@ import { useUserActions } from "../components/Users/useUserActions.jsx";
 /**
  * Componente responsável pela listagem e gestão de utilizadores.
  * Página de acesso restrito a Administradores.
- * Permite visualizar os perfis através de URLs únicos, alterar o estado (Ativar/Desativar)
- * e eliminar permanentemente contas de utilizadores.
- * * @returns {JSX.Element} A interface de listagem e gestão de utilizadores.
  */
 const Users = () => {
     const { userRole } = useUserStore();
@@ -31,7 +29,6 @@ const Users = () => {
 
     /**
      * Carrega a lista completa de utilizadores a partir da API.
-     * Ordena a lista colocando os utilizadores ativos primeiro e os desativados (softDelete) no fim.
      */
     const loadUsers = useCallback(async () => {
         try {
@@ -46,10 +43,6 @@ const Users = () => {
         }
     }, []);
 
-    /**
-     * Efeito que verifica o nível de acesso do utilizador atual.
-     * Se não for administrador, redireciona para o dashboard. Caso contrário, carrega a lista.
-     */
     useEffect(() => {
         if (!isAdmin) {
             navigate("/dashboard");
@@ -58,16 +51,19 @@ const Users = () => {
         loadUsers();
     }, [isAdmin, navigate, loadUsers]);
 
-    // INJEÇÃO DA LÓGICA DE NEGÓCIO:
-    // Passamos o loadUsers e o closeModal para o hook saber o que fazer após a API responder.
     const { executeUserAction } = useUserActions(loadUsers, closeModal);
 
-    /**
-     * Delega a ação confirmada no modal para o hook de ações de utilizador.
-     * * @param {Object} data - Os dados do utilizador sobre o qual a ação será executada.
-     */
     const handleConfirmAction = async (data) => {
         await executeUserAction(modalConfig.type, data);
+    };
+
+    /**
+     * Lógica para o botão "Enviar Convite" no Header.
+     * Abre o modal específico para introduzir o e-mail do novo colaborador.
+     */
+    const handleInvite = () => {
+        // "USER_INVITE" deve ser tratado no seu ConfirmActionContent/useUserActions
+       openModal("USER_INVITE", "Convidar Novo Colaborador", {});
     };
 
     if (loading && users.length === 0) {
@@ -80,31 +76,30 @@ const Users = () => {
     }
 
     return (
-        <Container className="mt-4">
-            <div className="mb-4">
-                <h2 className="fw-bold m-0 text-secondary">GESTÃO DE USERS (ADMIN)</h2>
-                <p className="text-muted small">Gerencie as contas e estados dos colaboradores.</p>
-            </div>
+        <div className="users-page">
+            {/* O Header fica fora do Container para ocupar toda a largura e mostrar a borda inferior */}
+            <UsersHeader onInviteClick={handleInvite} />
 
-            {error && <Alert variant="danger">{error}</Alert>}
+            <Container>
+                {error && <Alert variant="danger">{error}</Alert>}
 
-            <UserGrid
-                users={users}
-                /* CORREÇÃO: Utilizar a variável correta "u" definida no parâmetro do callback */
-                onViewProfile={(u) => navigate(`/users/${u.username}`)}
-                onToggleStatus={(u) => openModal("USER_TOGGLE_STATUS", u.softDelete ? "Reativar" : "Desativar", u)}
-                onHardDelete={(u) => openModal("USER_HARD_DELETE", "Ação Irreversível", u)}
-            />
-
-            <DynamicModal show={modalConfig.show} onHide={closeModal} title={modalConfig.title}>
-                <ConfirmActionContent
-                    type={modalConfig.type}
-                    data={modalConfig.data}
-                    onCancel={closeModal}
-                    onConfirm={handleConfirmAction} // Passa a chamada limpa
+                <UserGrid
+                    users={users}
+                    onViewProfile={(u) => navigate(`/users/${u.username}`)}
+                    onToggleStatus={(u) => openModal("USER_TOGGLE_STATUS", u.softDelete ? "Reativar" : "Desativar", u)}
+                    onHardDelete={(u) => openModal("USER_HARD_DELETE", "Ação Irreversível", u)}
                 />
-            </DynamicModal>
-        </Container>
+
+                <DynamicModal show={modalConfig.show} onHide={closeModal} title={modalConfig.title}>
+                    <ConfirmActionContent
+                        type={modalConfig.type}
+                        data={modalConfig.data}
+                        onCancel={closeModal}
+                        onConfirm={handleConfirmAction}
+                    />
+                </DynamicModal>
+            </Container>
+        </div>
     );
 };
 

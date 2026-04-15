@@ -14,7 +14,7 @@ export const useResourceActions = (openModal, filters, stores) => {
     const navigate = useNavigate();
     const { leadStore, clientStore, userRole } = stores;
 
-    // CONTROLO DE ACESSO (RBAC - 2%):
+    // CONTROLO DE ACESSO:
     // Variável crucial que dita se funções críticas (Restauro/Hard Delete) serão criadas ou não.
     const isAdmin = userRole === "ADMIN";
 
@@ -25,7 +25,7 @@ export const useResourceActions = (openModal, filters, stores) => {
         onEdit: (lead) => openModal("EDIT_LEAD", "Editar Lead", lead),
         onDelete: (lead) => openModal("SOFT_DELETE", "Mover para Lixeira", lead),
 
-        /** * openCreate (NAVEGAÇÃO COM ESTADO - 6%):
+        /** * openCreate:
          * Passa o 'initialState' (coluna do Kanban) e o 'targetId' (atribuição de Admin)
          * através do state do react-router, otimizando o preenchimento do formulário.
          */
