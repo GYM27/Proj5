@@ -52,4 +52,18 @@ public class TokenDao extends AbstractDao<TokenEntity> implements Serializable {
             return null;
         }
     }
+
+    public TokenEntity findActiveTokenByUser(UserEntity owner) {
+        try {
+            // Procuro o token que pertence ao owner e que ainda está marcado como active
+            return em.createQuery(
+                            "SELECT t FROM TokenEntity t WHERE t.owner = :owner AND t.active = true ORDER BY t.expiresAt DESC",
+                            TokenEntity.class)
+                    .setParameter("owner", owner)
+                    .setMaxResults(1) // Garanto que só trago o mais recente
+                    .getSingleResult();
+        } catch (NoResultException e) {
+            return null; // Utilizador não tem sessões ativas
+        }
+    }
 }

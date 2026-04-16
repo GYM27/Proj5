@@ -76,4 +76,23 @@ public class TokenBean implements Serializable {
     public boolean invalidateToken(String tokenValue) {
         return tokenDao.invalidateToken(tokenValue) > 0;
     }
+
+    /**
+     * Procura o valor do token ativo de um utilizador específico.
+     * Este método é crucial para o MessageBean saber se o destinatário está "online"
+     * e para que canal WebSocket deve enviar a mensagem.
+     */
+    public String getActiveTokenValueByUser(UserEntity receiver) {
+        // 1. Peço ao DAO para procurar o token ativo associado a este UserEntity
+        TokenEntity token = tokenDao.findActiveTokenByUser(receiver);
+
+        // 2. Valido se o token existe e se ainda é válido (não expirou)
+        // Uso o método isTokenValid que já criámos para reaproveitar a lógica de expiração
+        if (token != null && isTokenValid(token.getTokenValue())) {
+            return token.getTokenValue();
+        }
+
+        // Se não encontrar ou estiver expirado, retorno null (destinatário offline)
+        return null;
+    }
 }
