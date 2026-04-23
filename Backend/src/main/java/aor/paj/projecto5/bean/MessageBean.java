@@ -37,7 +37,7 @@ public class MessageBean {
 
         em.persist(message);
 
-        // 3. Escalabilidade WebSocket: Só tentamos enviar se o user estiver online
+        // Só tentamos enviar se o user estiver online
         // O método getActiveTokenValueByUser no TokenBean deve ser uma query indexada
         String receiverToken = tokenBean.getActiveTokenValueByUser(receiver);
 
